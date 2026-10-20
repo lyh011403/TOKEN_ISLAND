@@ -607,47 +607,114 @@ static class PixelPreview {
     }
 }
 
+class DropRequest {
+    public string ModelName;
+    public long? TokenDelta;
+    public double? PercentDelta;
+    public double? CurrentRemaining;
+    public Window Owner;
+    public Preferences Prefs;
+}
+
 static class CatDropOverlay {
     static BitmapSource[] frames;
-    static bool loaded = false;
+    static volatile bool loaded = false;
+    static readonly object loadLock = new object();
+    static readonly Queue<DropRequest> pendingQueue = new Queue<DropRequest>();
+    static CatDropWindow activeWindow = null;
+
+    public static void PreloadAsync() {
+        if (loaded && frames != null) return;
+        System.Threading.Tasks.Task.Run(() => {
+            try {
+                LoadFrames();
+            } catch { }
+        });
+    }
 
     public static BitmapSource[] LoadFrames() {
-        if (loaded) return frames;
-        loaded = true;
-        try {
-            string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "cat_play");
-            if (!Directory.Exists(dir)) dir = Path.Combine(Storage.Root, "assets", "cat_play");
-            if (Directory.Exists(dir)) {
-                var list = new List<BitmapSource>();
-                for (int i = 0; i <= 93; i++) {
-                    string fn = Path.Combine(dir, string.Format("CAT_PLAY_{0:D3}.png", i));
-                    if (!File.Exists(fn)) break;
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.UriSource = new Uri(fn, UriKind.Absolute);
-                    bmp.DecodePixelWidth = 280;
-                    bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.EndInit();
-                    bmp.Freeze();
-                    list.Add(bmp);
+        if (loaded && frames != null) return frames;
+        lock (loadLock) {
+            if (loaded && frames != null) return frames;
+            try {
+                string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "cat_play");
+                if (!Directory.Exists(dir)) dir = Path.Combine(Storage.Root, "assets", "cat_play");
+                if (Directory.Exists(dir)) {
+                    var list = new List<BitmapSource>();
+                    for (int i = 0; i <= 93; i++) {
+                        string fn = Path.Combine(dir, string.Format("CAT_PLAY_{0:D3}.png", i));
+                        if (!File.Exists(fn)) break;
+                        var bmp = new BitmapImage();
+                        bmp.BeginInit();
+                        bmp.UriSource = new Uri(fn, UriKind.Absolute);
+                        bmp.DecodePixelWidth = 280;
+                        bmp.CacheOption = BitmapCacheOption.OnLoad;
+                        bmp.EndInit();
+                        bmp.Freeze();
+                        list.Add(bmp);
+                    }
+                    if (list.Count > 0) frames = list.ToArray();
                 }
-                if (list.Count > 0) frames = list.ToArray();
-            }
-        } catch { }
-        return frames;
+            } catch { }
+            loaded = true;
+            return frames;
+        }
     }
 
     public static void Show(string modelName, long? tokenDelta, double? percentDelta, double? currentRemaining, Window owner, Preferences prefs) {
         if (prefs != null && !prefs.TokenDropAnimation) return;
-        var f = LoadFrames();
-        if (f == null || f.Length == 0) return;
+
+        var req = new DropRequest {
+            ModelName = modelName,
+            TokenDelta = tokenDelta,
+            PercentDelta = percentDelta,
+            CurrentRemaining = currentRemaining,
+            Owner = owner,
+            Prefs = prefs
+        };
 
         if (owner != null && owner.Dispatcher != null) {
             owner.Dispatcher.BeginInvoke(new Action(delegate {
-                try {
-                    new CatDropWindow(modelName, tokenDelta, percentDelta, currentRemaining, owner, prefs, f).Show();
-                } catch { }
+                EnqueueAndProcess(req);
             }));
+        }
+    }
+
+    static void EnqueueAndProcess(DropRequest req) {
+        if (req != null) {
+            if (pendingQueue.Count >= 2) {
+                pendingQueue.Dequeue();
+            }
+            pendingQueue.Enqueue(req);
+        }
+        if (activeWindow != null) return;
+        ProcessNextQueue();
+    }
+
+    static void ProcessNextQueue() {
+        if (pendingQueue.Count == 0) return;
+        var req = pendingQueue.Dequeue();
+        var f = LoadFrames();
+        if (f == null || f.Length == 0) return;
+
+        try {
+            activeWindow = new CatDropWindow(req.ModelName, req.TokenDelta, req.PercentDelta, req.CurrentRemaining, req.Owner, req.Prefs, f);
+            activeWindow.Closed += delegate {
+                activeWindow = null;
+                if (pendingQueue.Count > 0 && req.Owner != null && req.Owner.Dispatcher != null) {
+                    var delayTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, req.Owner.Dispatcher) {
+                        Interval = TimeSpan.FromMilliseconds(180)
+                    };
+                    delayTimer.Tick += delegate {
+                        delayTimer.Stop();
+                        ProcessNextQueue();
+                    };
+                    delayTimer.Start();
+                }
+            };
+            activeWindow.Show();
+        } catch {
+            activeWindow = null;
         }
     }
 
@@ -704,9 +771,14 @@ static class CatDropOverlay {
             var col = (Color)ColorConverter.ConvertFromString(glowCol);
             grid.Effect = new System.Windows.Media.Effects.DropShadowEffect {
                 Color = col,
-                BlurRadius = 12,
+                BlurRadius = 10,
                 ShadowDepth = 0,
                 Opacity = 0.85
+            };
+            grid.CacheMode = new BitmapCache {
+                RenderAtScale = 1.0,
+                EnableClearType = false,
+                SnapsToDevicePixels = true
             };
         }
         return grid;
@@ -897,7 +969,7 @@ class CatDropWindow : Window {
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top
         };
-        RenderOptions.SetBitmapScalingMode(catImg, BitmapScalingMode.HighQuality);
+        RenderOptions.SetBitmapScalingMode(catImg, BitmapScalingMode.LowQuality);
         grid.Children.Add(catImg);
 
         // 讀取樣式（預設 B：Nothing 琥珀霓虹方塊純懸浮）
@@ -962,21 +1034,32 @@ class CatDropWindow : Window {
             Margin = new Thickness(0, catH + 8 * s, 0, 0),
             Opacity = 0,
             RenderTransformOrigin = new Point(0.5, 0.5),
-            RenderTransform = tg
+            RenderTransform = tg,
+            CacheMode = new BitmapCache { RenderAtScale = 1.0, SnapsToDevicePixels = true }
         };
         grid.Children.Add(floatText);
 
         Content = grid;
 
-        timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Render, Dispatcher);
+        timer.Interval = TimeSpan.FromMilliseconds(33);
         timer.Tick += OnTick;
+        Closed += delegate {
+            if (timer != null) {
+                timer.Stop();
+                timer.Tick -= OnTick;
+            }
+        };
         timer.Start();
     }
 
     void OnTick(object sender, EventArgs e) {
         currentFrame++;
         if (currentFrame >= frames.Length) {
-            timer.Stop();
+            if (timer != null) {
+                timer.Stop();
+                timer.Tick -= OnTick;
+            }
             Close();
             return;
         }

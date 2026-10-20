@@ -903,6 +903,7 @@ class Island : Window {
             prefs.Dock = "top"; // 強制頂部動態島模式
             PixelAnimal.CurrentAnimal = prefs.GetAnimalType();
             if (prefs.Scale < 0.6 || prefs.Scale > 3.0) prefs.Scale = 1.0;
+            if (!screenshot) CatDropOverlay.PreloadAsync();
 
             Title = I18n.T("Island.Title");
             WindowStyle = WindowStyle.None;
