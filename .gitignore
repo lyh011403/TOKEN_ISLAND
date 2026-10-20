@@ -19,6 +19,11 @@ dispatcher-error.txt
 # 本地測試與暫存腳本目錄
 scratch/
 dist/
+tests/
+
+# 本地開發與診斷截圖（不影響程式功能）
+preview*.png
+animal-states.png
 
 # 本地壓縮封裝檔
 *.zip
