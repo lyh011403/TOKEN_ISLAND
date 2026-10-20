@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -18,6 +19,25 @@ namespace TokenIsland {
     }
 
     public class TrayShelfManager {
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct ShellFileInfo {
+            public IntPtr Icon;
+            public int IconIndex;
+            public uint Attributes;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string DisplayName;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
+            public string TypeName;
+        }
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SHGetFileInfo(string path, uint attributes,
+            out ShellFileInfo info, uint size, uint flags);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyIcon(IntPtr icon);
+
         private static TrayShelfManager instance;
         public static TrayShelfManager Instance {
             get {
@@ -101,6 +121,20 @@ namespace TokenIsland {
 
         private BitmapSource GetFileIcon(string path, bool isDir) {
             try {
+                if (isDir) {
+                    ShellFileInfo info;
+                    SHGetFileInfo(path, 0, out info, (uint)Marshal.SizeOf(typeof(ShellFileInfo)),
+                        0x100 | 0x1); // SHGFI_ICON | SHGFI_SMALLICON
+                    if (info.Icon == IntPtr.Zero) return null;
+                    try {
+                        var bmp = Imaging.CreateBitmapSourceFromHIcon(info.Icon,
+                            Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                        bmp.Freeze();
+                        return bmp;
+                    } finally {
+                        DestroyIcon(info.Icon);
+                    }
+                }
                 using (Icon sysIcon = Icon.ExtractAssociatedIcon(path)) {
                     if (sysIcon != null) {
                         var bmp = Imaging.CreateBitmapSourceFromHIcon(

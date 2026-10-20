@@ -395,7 +395,6 @@ static class Providers {
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
             using (var p = Process.Start(psi)) {
@@ -824,6 +823,7 @@ class Island : Window {
     StackPanel compactChipsBox;
     readonly List<PixelAnimal> animals = new List<PixelAnimal>();
     Forms.NotifyIcon tray;
+    System.Drawing.Icon trayImage;
     bool expanded, busy, closing, isCinemaHidden, settingsOpen; public bool IsExpanded { get { return expanded; } }
     DateTime suppressHover = DateTime.MinValue;
     DateTime lastAg = DateTime.MinValue;
@@ -1566,6 +1566,7 @@ class Island : Window {
                 Save();
                 tray.Visible = false;
                 tray.Dispose();
+                if (trayImage != null) { trayImage.Dispose(); trayImage = null; }
                 Application.Current.Shutdown();
             };
 
@@ -2037,8 +2038,9 @@ class Island : Window {
 
     void SetupTray() {
         if (tray == null) {
+            trayImage = TrayIconLoader.Load();
             tray = new Forms.NotifyIcon {
-                Icon = System.Drawing.Icon.ExtractAssociatedIcon(Process.GetCurrentProcess().MainModule.FileName),
+                Icon = trayImage,
                 Visible = true
             };
             tray.DoubleClick += delegate { Dispatcher.Invoke(new Action(Reveal)); };

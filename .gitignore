@@ -20,16 +20,24 @@ dispatcher-error.txt
 scratch/
 dist/
 tests/
+tmp/
 
 # 本地開發與診斷截圖（不影響程式功能）
 preview*.png
 animal-states.png
+/crop_token.png
+/icon_256x256.png
+/layer_*x*.png
+/red_box_content.png
+/row1_icons.png
+/token_zoomed.png
 
 # 本地壓縮封裝檔
 *.zip
 
 # 編譯產物與系統二進位中繼檔
 TokenIsland.exe
+TokenIsland-*.exe
 Windows.winmd
 bin/
 obj/

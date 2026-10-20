@@ -11,6 +11,16 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
 namespace TokenIsland {
+    internal sealed class CalendarWebClient : WebClient {
+        protected override WebRequest GetWebRequest(Uri address) {
+            WebRequest request = base.GetWebRequest(address);
+            request.Timeout = 10000;
+            var http = request as HttpWebRequest;
+            if (http != null) http.ReadWriteTimeout = 10000;
+            return request;
+        }
+    }
+
     public class CalendarItem {
         public string Id { get; set; }
         public string Title { get; set; }
@@ -369,7 +379,7 @@ namespace TokenIsland {
                     targetUrl += "?_cb=" + cb;
                 }
 
-                using (var client = new WebClient()) {
+                using (var client = new CalendarWebClient()) {
                     client.Encoding = Encoding.UTF8;
                     client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TokenIsland-CalendarSync/1.0";
                     client.Headers[HttpRequestHeader.CacheControl] = "no-cache, no-store, must-revalidate";

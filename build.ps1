@@ -26,7 +26,7 @@ if ($procs) {
     Start-Sleep -Milliseconds 800
 }
 
-& $compiler /nologo /target:winexe /platform:x64 /optimize+ /utf8output "/win32icon:$PSScriptRoot\TokenIsland.ico" "/out:$outExe" @refs (Get-ChildItem -LiteralPath "$PSScriptRoot\src" -Filter '*.cs' | ForEach-Object FullName)
+& $compiler /nologo /target:winexe /platform:x64 /optimize+ /utf8output "/win32icon:$PSScriptRoot\TokenIsland.ico" "/resource:$PSScriptRoot\TokenIsland.ico,TokenIsland.TrayIcon.ico" "/out:$outExe" @refs (Get-ChildItem -LiteralPath "$PSScriptRoot\src" -Filter '*.cs' | ForEach-Object FullName)
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
 Write-Output 'Built TokenIsland.exe successfully.'
 

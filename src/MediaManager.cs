@@ -32,6 +32,14 @@ namespace TokenIsland {
         private string lastTitle = "";
         private string lastArtist = "";
         private bool lastPlaying = false;
+        private string lastAppId = "";
+        private bool lastHasThumbnail;
+        private bool refreshing;
+
+        internal bool IsCurrentTrack(string title, string artist, bool playing, string appId, bool hasThumbnail) {
+            return CurrentTrack.HasMedia && title == lastTitle && artist == lastArtist
+                && playing == lastPlaying && appId == lastAppId && hasThumbnail == lastHasThumbnail;
+        }
 
         public MediaManager() {
             CurrentTrack = new MediaTrackInfo();
@@ -52,6 +60,8 @@ namespace TokenIsland {
         }
 
         public async Task RefreshTrackInfoAsync() {
+            if (refreshing) return;
+            refreshing = true;
             try {
                 if (sessionManager == null) {
                     sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
@@ -86,7 +96,8 @@ namespace TokenIsland {
                 string artist = (props != null && !string.IsNullOrEmpty(props.Artist)) ? props.Artist : displayAppName;
 
                 // 檢查是否有變動
-                if (title == lastTitle && artist == lastArtist && isPlaying == lastPlaying && CurrentTrack.Thumbnail != null) {
+                bool hasThumbnail = props != null && props.Thumbnail != null;
+                if (IsCurrentTrack(title, artist, isPlaying, appId, hasThumbnail)) {
                     return;
                 }
 
@@ -110,6 +121,8 @@ namespace TokenIsland {
                 lastTitle = title;
                 lastArtist = artist;
                 lastPlaying = isPlaying;
+                lastAppId = appId;
+                lastHasThumbnail = hasThumbnail;
 
                 CurrentTrack = new MediaTrackInfo {
                     Title = title,
@@ -132,6 +145,8 @@ namespace TokenIsland {
                     };
                     RaiseTrackChanged();
                 }
+            } finally {
+                refreshing = false;
             }
         }
 
