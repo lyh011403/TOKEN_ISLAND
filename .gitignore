@@ -1,0 +1,37 @@
+# ==========================================
+# TokenIsland - 隱私保護與敏感資料隔離
+# ==========================================
+
+# 使用者私密設定、行事曆 iCal 私人連結、行程快取與釘選便箋
+data/
+data/*
+
+# 本地執行記錄與暫存
+*.log
+*.tmp
+frame-err.txt
+screenshot-err.txt
+init-ex.txt
+startup-ex.txt
+test-err.txt
+dispatcher-error.txt
+
+# 本地測試與暫存腳本目錄
+scratch/
+dist/
+
+# 本地壓縮封裝檔
+*.zip
+
+# 編譯產物與系統二進位中繼檔
+TokenIsland.exe
+Windows.winmd
+bin/
+obj/
+*.pdb
+
+# IDE 與編輯器暫存
+.vs/
+.idea/
+*.user
+*.suo
