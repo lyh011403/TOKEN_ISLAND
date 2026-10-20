@@ -189,7 +189,7 @@ public class Preferences {
     public Dictionary<string, string> ProviderColors = new Dictionary<string, string>();
     public bool TokenDropAnimation = true;
     public double DropAnimScale = 1.0;
-    public string DropAnimPos = "island";
+    public string DropAnimPos = "right";
     public string DropTextStyle = "B";
     public bool CinemaMode = true;
     public bool AvoidBrowser = true;
@@ -303,6 +303,8 @@ static class Storage {
             if (!p.ProviderAnimals.ContainsKey("antigravity")) p.ProviderAnimals["antigravity"] = !string.IsNullOrEmpty(p.AntigravityAnimal) ? p.AntigravityAnimal : "fox";
             if (!p.ProviderAnimals.ContainsKey("claude")) p.ProviderAnimals["claude"] = !string.IsNullOrEmpty(p.ClaudeAnimal) ? p.ClaudeAnimal : "fox";
             p.CustomAnimalColor = "";
+            if (p.DropAnimScale <= 0.55 && p.DropAnimScale > 0) p.DropAnimScale = 1.0;
+            if (string.IsNullOrEmpty(p.DropAnimPos)) p.DropAnimPos = "right";
             return p;
         } catch { return new Preferences(); }
     }
@@ -822,7 +824,7 @@ class Island : Window {
     StackPanel compactChipsBox;
     readonly List<PixelAnimal> animals = new List<PixelAnimal>();
     Forms.NotifyIcon tray;
-    bool expanded, busy, closing, isCinemaHidden, settingsOpen;
+    bool expanded, busy, closing, isCinemaHidden, settingsOpen; public bool IsExpanded { get { return expanded; } }
     DateTime suppressHover = DateTime.MinValue;
     DateTime lastAg = DateTime.MinValue;
     HashSet<string> warned = new HashSet<string>();
@@ -1797,7 +1799,7 @@ class Island : Window {
         }
     }
 
-    Rect WorkArea() {
+    public Rect WorkArea() {
         var targetScreen = prefs != null ? prefs.GetTargetScreen() : Forms.Screen.PrimaryScreen;
         if (targetScreen == null) return SystemParameters.WorkArea;
         var area = targetScreen.WorkingArea;
@@ -3287,7 +3289,70 @@ class Island : Window {
             prefs.AnimalAnimation = v;
             UpdateMotion();
         }));
-        rows.Children.Add(MenuToggle(I18n.T("Settings.TokenDrop"), prefs.TokenDropAnimation, delegate(bool v) { prefs.TokenDropAnimation = v; Save(); }));
+        var dropOptsBox = new StackPanel { Margin = new Thickness(0, 2, 0, 0), Visibility = prefs.TokenDropAnimation ? Visibility.Visible : Visibility.Collapsed };
+        rows.Children.Add(MenuToggle(I18n.T("Settings.TokenDrop"), prefs.TokenDropAnimation, delegate(bool v) {
+            prefs.TokenDropAnimation = v;
+            dropOptsBox.Visibility = v ? Visibility.Visible : Visibility.Collapsed;
+            Save();
+        }));
+
+        dropOptsBox.Children.Add(MakeSliderWithInput(I18n.T("Settings.DropScale"), 60, 160, () => prefs.DropAnimScale, v => { prefs.DropAnimScale = Math.Round(v, 2); Save(); }, I18n.T("Settings.DropScaleTip")));
+
+        var posHdr = Text(I18n.T("Settings.DropPos"), 10.5, "#8EA2B0");
+        posHdr.FontWeight = FontWeights.SemiBold;
+        posHdr.Margin = new Thickness(7, 4, 7, 3);
+        dropOptsBox.Children.Add(posHdr);
+
+        var posBox = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(7, 0, 7, 5) };
+        Button btnPosRight = null;
+        Button btnPosIsland = null;
+        Button btnPosCenter = null;
+        Action updatePosBtns = null;
+
+        Func<string, string, string, Button> makePosBtn = (title, val, tip) => {
+            var b = Button(title, () => {
+                prefs.DropAnimPos = val;
+                Save();
+                if (updatePosBtns != null) updatePosBtns();
+            }, tip);
+            b.FontSize = 10.5;
+            b.Margin = new Thickness(0, 0, 6, 0);
+            b.Padding = new Thickness(9, 4, 9, 4);
+            return b;
+        };
+
+        btnPosRight = makePosBtn(I18n.T("Settings.DropPosRight"), "right", "螢幕右上角 (推薦，不遮擋靈動島)");
+        btnPosIsland = makePosBtn(I18n.T("Settings.DropPosIsland"), "island", "靈動島正中或側邊");
+        btnPosCenter = makePosBtn(I18n.T("Settings.DropPosCenter"), "center", "螢幕正中");
+
+        updatePosBtns = () => {
+            string cur = !string.IsNullOrEmpty(prefs.DropAnimPos) ? prefs.DropAnimPos : "right";
+            btnPosRight.Background = Brush(cur == "right" ? "#1E3A5F" : "#141A22");
+            btnPosRight.Foreground = Brush(cur == "right" ? "#60A5FA" : "#94A3B8");
+            btnPosIsland.Background = Brush(cur == "island" ? "#1E3A5F" : "#141A22");
+            btnPosIsland.Foreground = Brush(cur == "island" ? "#60A5FA" : "#94A3B8");
+            btnPosCenter.Background = Brush(cur == "center" ? "#1E3A5F" : "#141A22");
+            btnPosCenter.Foreground = Brush(cur == "center" ? "#60A5FA" : "#94A3B8");
+        };
+        updatePosBtns();
+
+        posBox.Children.Add(btnPosRight);
+        posBox.Children.Add(btnPosIsland);
+        posBox.Children.Add(btnPosCenter);
+        dropOptsBox.Children.Add(posBox);
+
+        var testBtn = Button(I18n.T("Settings.DropPreview"), () => {
+            CatDropOverlay.Show("ANTIGRAVITY", 1450, 3.5, 96.5, this, prefs);
+        }, "立即預覽掉落小貓動畫");
+        testBtn.FontSize = 10.5;
+        testBtn.Foreground = Brush("#38BDF8");
+        testBtn.Background = Brush("#0C2030");
+        testBtn.Margin = new Thickness(7, 3, 7, 4);
+        testBtn.Padding = new Thickness(10, 5, 10, 5);
+        testBtn.HorizontalAlignment = HorizontalAlignment.Left;
+        dropOptsBox.Children.Add(testBtn);
+
+        rows.Children.Add(dropOptsBox);
 
         separator();
 

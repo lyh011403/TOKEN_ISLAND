@@ -836,13 +836,13 @@ static class CatDropOverlay {
     public static void CaptureDropPreview(string outputPath, Preferences prefs) {
         var f = LoadFrames();
         if (f == null || f.Length == 0) return;
-        double s = prefs != null ? Math.Max(0.2, Math.Min(5.0, prefs.DropAnimScale)) : 1.0;
+        double s = prefs != null ? Math.Max(0.5, Math.Min(2.0, prefs.DropAnimScale)) : 1.0;
         int frameIdx = Math.Min(35, f.Length - 1);
-        double catW = 240 * s;
-        double catH = 426 * s;
-        double textRequiredH = Math.Max(84.0, 115.0 * s);
-        double totalW = Math.Max(420 * s, 380);
-        double totalH = catH + 10 * s + textRequiredH;
+        double catW = 114 * s;
+        double catH = 202 * s;
+        double textRequiredH = Math.Max(58.0, 72.0 * s);
+        double totalW = Math.Max(260 * s, 240);
+        double totalH = catH + 6 * s + textRequiredH;
 
         var grid = new Grid { Width = totalW, Height = totalH, Background = Brushes.Transparent };
         var cat = new Image {
@@ -862,13 +862,12 @@ static class CatDropOverlay {
         string glowCol = "#FF9500";
         bool stroke    = style != "B";
 
-        // 防文字縮小時看不清的最小保護字號，與縮小貓咪比例完美協調
-        double mainFontSize = Math.Max(18.0, 32.0 * s);
-        double subFontSize  = Math.Max(9.5, 13.5 * s);
+        double mainFontSize = Math.Max(12.0, 18.0 * s);
+        double subFontSize  = Math.Max(7.5, 9.5 * s);
+        double aiFontSize   = Math.Max(8.0, 10.5 * s);
 
         var dispStack = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
         
-        double aiFontSize = Math.Max(10.0, 13.0 * s);
         string aiCol = style == "A" ? "#FFE57F" : style == "C" ? "#C2E2FF" : "#FFC266";
         var aiHeader = MakeTightPixelText("ANTIGRAVITY", aiFontSize, Island.Brush(aiCol), stroke, null);
         aiHeader.HorizontalAlignment = HorizontalAlignment.Center;
@@ -884,13 +883,12 @@ static class CatDropOverlay {
         sub.HorizontalAlignment = HorizontalAlignment.Center;
         dispStack.Children.Add(sub);
 
-        // 嚴格放置於貓咪正下方！零重疊！純文字懸浮！高度完全保底不截斷！
         var floatText = new Border {
             Background = Brushes.Transparent,
             Child = dispStack,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, catH + 8 * s, 0, 0),
+            Margin = new Thickness(0, catH + 4 * s, 0, 0),
             Opacity = 1.0
         };
         grid.Children.Add(floatText);
@@ -928,37 +926,75 @@ class CatDropWindow : Window {
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
 
-        double s = prefs != null ? Math.Max(0.2, Math.Min(5.0, prefs.DropAnimScale)) : 1.0;
-        double catW = 240 * s;
-        double catH = 426 * s;
-        double textRequiredH = Math.Max(84.0, 115.0 * s);
-        Width = Math.Max(420 * s, 380);
-        Height = catH + 10 * s + textRequiredH;
-
+        // 1. 正確獲取螢幕工作區 (與 Island 目標螢幕完全同步，修復多螢幕與混合 DPI 偏差)
         Rect screenArea = SystemParameters.WorkArea;
-        if (owner != null) {
-            PresentationSource src = PresentationSource.FromVisual(owner);
-            if (src != null && src.CompositionTarget != null) {
-                var matrix = src.CompositionTarget.TransformToDevice;
-                Point point = matrix.Transform(new Point(owner.Left + owner.Width / 2, owner.Top));
-                var area = Forms.Screen.FromPoint(new System.Drawing.Point((int)point.X, (int)point.Y)).WorkingArea;
-                var inverse = src.CompositionTarget.TransformFromDevice;
-                screenArea = new Rect(inverse.Transform(new Point(area.Left, area.Top)), inverse.Transform(new Point(area.Right, area.Bottom)));
-            }
+        var islandOwner = owner as Island;
+        if (islandOwner != null) {
+            try { screenArea = islandOwner.WorkArea(); } catch { }
+        } else if (owner != null) {
+            try {
+                Point pScreen = owner.PointToScreen(new Point(owner.Width / 2, 0));
+                var scr = Forms.Screen.FromPoint(new System.Drawing.Point((int)pScreen.X, (int)pScreen.Y));
+                var src = PresentationSource.FromVisual(owner);
+                if (src != null && src.CompositionTarget != null) {
+                    var inverse = src.CompositionTarget.TransformFromDevice;
+                    var area = scr.WorkingArea;
+                    screenArea = new Rect(inverse.Transform(new Point(area.Left, area.Top)), inverse.Transform(new Point(area.Right, area.Bottom)));
+                }
+            } catch { }
+        }
+
+        // 2. 基準尺寸正常化 (1.0 比例對應正常可愛小貓 114x202，不再出現 426px 覆蓋全螢幕的怪物巨貓)
+        double s = prefs != null ? Math.Max(0.5, Math.Min(2.0, prefs.DropAnimScale)) : 1.0;
+        double catW = 114 * s;
+        double catH = 202 * s;
+        double textRequiredH = Math.Max(58.0, 72.0 * s);
+        Width = Math.Max(260 * s, 240);
+        Height = catH + 6 * s + textRequiredH;
+
+        // 3. 筆電螢幕與小解析度高度保護 (最高不超過工作區 36%，防止小筆電覆蓋過半)
+        double maxAllowedH = screenArea.Height * 0.36;
+        if (Height > maxAllowedH && maxAllowedH > 140) {
+            double scaleDown = maxAllowedH / Height;
+            catW *= scaleDown;
+            catH *= scaleDown;
+            s *= scaleDown;
+            Width = Math.Max(210.0, Width * scaleDown);
+            Height = maxAllowedH;
         }
 
         Top = screenArea.Top;
-        string pos = prefs != null ? prefs.DropAnimPos : "island";
+
+        // 4. 位置定位與智慧防遮擋
+        string pos = prefs != null && !string.IsNullOrEmpty(prefs.DropAnimPos) ? prefs.DropAnimPos : "right";
         if (pos == "center") {
             Left = screenArea.Left + (screenArea.Width - Width) / 2;
-        } else if (pos == "right") {
-            Left = screenArea.Right - Width - 30;
-        } else {
+        } else if (pos == "island") {
             if (owner != null) {
-                Left = Math.Max(screenArea.Left + 10, Math.Min(owner.Left + (owner.Width - Width) / 2, screenArea.Right - Width - 10));
+                var isl = owner as Island;
+                bool isExp = isl != null ? isl.IsExpanded : (owner.ActualHeight > 60 || owner.Height > 60);
+                if (isExp) {
+                    // 靈動島展開卡片時：嚴禁正中落下遮擋 Codex / Antigravity 卡片
+                    // 優先降落於展開卡片右側，右側無空間時降落於左側
+                    double rightSide = owner.Left + owner.Width + 12;
+                    double leftSide = owner.Left - Width - 12;
+                    if (rightSide + Width <= screenArea.Right - 8) {
+                        Left = rightSide;
+                    } else if (leftSide >= screenArea.Left + 8) {
+                        Left = leftSide;
+                    } else {
+                        Left = screenArea.Right - Width - 24;
+                    }
+                } else {
+                    // 靈動島收合膠囊狀態：正對靈動島中心垂降
+                    Left = Math.Max(screenArea.Left + 8, Math.Min(owner.Left + (owner.Width - Width) / 2, screenArea.Right - Width - 8));
+                }
             } else {
-                Left = screenArea.Left + (screenArea.Width - Width) / 2;
+                Left = screenArea.Right - Width - 24;
             }
+        } else {
+            // "right" (預設：螢幕右上角，最自然、乾淨且完全獨立於靈動島展開狀態)
+            Left = screenArea.Right - Width - 24;
         }
 
         var grid = new Grid();
@@ -979,9 +1015,9 @@ class CatDropWindow : Window {
         string glowCol = "#FF9500";
         bool stroke    = style != "B";
 
-        // 防縮小看不清保護，小尺寸下與縮小貓咪比例完美協調
-        double mainFontSize = Math.Max(18.0, 32.0 * s);
-        double subFontSize  = Math.Max(9.5, 13.5 * s);
+        double mainFontSize = Math.Max(12.0, 18.0 * s);
+        double subFontSize  = Math.Max(7.5, 9.5 * s);
+        double aiFontSize   = Math.Max(8.0, 10.5 * s);
 
         // 頂部明確標註消耗來源之 AI 模型名稱（例如 ANTIGRAVITY、CODEX、CLAUDE）
         var dispStack = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
@@ -989,7 +1025,6 @@ class CatDropWindow : Window {
         if (aiTitle.Contains("·")) aiTitle = aiTitle.Substring(0, aiTitle.IndexOf("·")).Trim();
         aiTitle = aiTitle.ToUpperInvariant();
 
-        double aiFontSize = Math.Max(10.0, 13.0 * s);
         string aiCol = style == "A" ? "#FFE57F" : style == "C" ? "#C2E2FF" : "#FFC266";
         var aiHeader = CatDropOverlay.MakeTightPixelText(aiTitle, aiFontSize, Island.Brush(aiCol), stroke, null);
         aiHeader.HorizontalAlignment = HorizontalAlignment.Center;
@@ -1021,7 +1056,7 @@ class CatDropWindow : Window {
 
         // 像素遊戲跳出彈跳動態群組（位於貓咪下方）
         scaleTr = new ScaleTransform(0.3, 0.3);
-        transTr = new TranslateTransform(0, 16 * s);
+        transTr = new TranslateTransform(0, 10 * s);
         var tg = new TransformGroup();
         tg.Children.Add(scaleTr);
         tg.Children.Add(transTr);
@@ -1031,7 +1066,7 @@ class CatDropWindow : Window {
             Child = dispStack,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, catH + 8 * s, 0, 0),
+            Margin = new Thickness(0, catH + 4 * s, 0, 0),
             Opacity = 0,
             RenderTransformOrigin = new Point(0.5, 0.5),
             RenderTransform = tg,
