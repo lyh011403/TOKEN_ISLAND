@@ -64,7 +64,7 @@ namespace TokenIsland {
         };
 
         private static readonly HashSet<string> AiToolProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "antigravity", "claude", "cursor", "code", "windowsterminal", "cmd", "powershell", "pwsh",
+            "codex", "chatgpt", "antigravity", "claude", "cursor", "code", "windowsterminal", "cmd", "powershell", "pwsh",
             "devenv", "rider64", "pycharm64", "idea64"
         };
 
