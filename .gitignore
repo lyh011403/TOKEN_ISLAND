@@ -48,3 +48,12 @@ obj/
 .idea/
 *.user
 *.suo
+
+# 敏感金鑰、Token 與個人環境設定
+*.env
+*.env.*
+*.key
+*.pem
+*.token
+*.credential
+*.credentials

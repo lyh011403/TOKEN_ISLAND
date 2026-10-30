@@ -171,7 +171,7 @@ class Provider {
     public bool Stale { get { return Error || (Updated.HasValue && DateTime.UtcNow - Updated.Value > TimeSpan.FromMinutes(5)); } }
 }
 public class Preferences {
-    public bool Codex = true, Antigravity = true, Claude = true;
+    public bool Codex = true, Antigravity = true, Claude = true, Grok = true;
     public bool Breathing = true, AnimalAnimation = true, ReducedMotion = false;
     public bool Pinned = false, Alerts = true;
     public double Left = -1, Top = 0, Opacity = 0.98;
@@ -181,10 +181,10 @@ public class Preferences {
     public string GetLanguage() { return string.IsNullOrEmpty(Language) ? "zh-TW" : Language; }
     public string ActiveTab = "nook";
     public bool HoverExpand = true;
-    public string CodexColor = "blue", AntigravityColor = "orange", ClaudeColor = "green";
+    public string CodexColor = "blue", AntigravityColor = "orange", ClaudeColor = "green", GrokColor = "silver";
     public string AnimalType = "fox";
     public string CustomAnimalColor = "";
-    public string CodexAnimal = "cat", AntigravityAnimal = "fox", ClaudeAnimal = "fox";
+    public string CodexAnimal = "cat", AntigravityAnimal = "fox", ClaudeAnimal = "fox", GrokAnimal = "owl";
     public Dictionary<string, string> ProviderAnimals = new Dictionary<string, string>();
     public Dictionary<string, string> ProviderColors = new Dictionary<string, string>();
     public bool TokenDropAnimation = true;
@@ -209,9 +209,9 @@ public class Preferences {
         }
         return Forms.Screen.PrimaryScreen ?? all[0];
     }
-    public List<string> ProviderOrder = new List<string> { "codex", "antigravity", "claude" };
+    public List<string> ProviderOrder = new List<string> { "codex", "antigravity", "claude", "grok" };
     public List<string> GetOrderedProviders() {
-        var defaultList = new List<string> { "codex", "antigravity", "claude" };
+        var defaultList = new List<string> { "codex", "antigravity", "claude", "grok" };
         if (ProviderOrder == null || ProviderOrder.Count == 0) return defaultList;
         var list = new List<string>();
         foreach (var id in ProviderOrder) {
@@ -231,6 +231,7 @@ public class Preferences {
         if (id == "codex") return string.IsNullOrEmpty(CodexAnimal) ? "cat" : CodexAnimal;
         if (id == "antigravity") return string.IsNullOrEmpty(AntigravityAnimal) ? "fox" : AntigravityAnimal;
         if (id == "claude") return string.IsNullOrEmpty(ClaudeAnimal) ? "fox" : ClaudeAnimal;
+        if (id == "grok") return string.IsNullOrEmpty(GrokAnimal) ? "owl" : GrokAnimal;
         return string.IsNullOrEmpty(AnimalType) ? "fox" : AnimalType;
     }
     public void SetProviderAnimal(string id, string animal) {
@@ -239,6 +240,7 @@ public class Preferences {
         if (id == "codex") CodexAnimal = animal;
         else if (id == "antigravity") AntigravityAnimal = animal;
         else if (id == "claude") ClaudeAnimal = animal;
+        else if (id == "grok") GrokAnimal = animal;
     }
     public string ToggleProviderAnimal(string id) {
         string cur = GetProviderAnimal(id);
@@ -253,6 +255,7 @@ public class Preferences {
         if (id == "codex") return string.IsNullOrEmpty(CodexColor) ? "#3B82F6" : CodexColor;
         if (id == "antigravity") return string.IsNullOrEmpty(AntigravityColor) ? "#FFA500" : AntigravityColor;
         if (id == "claude") return string.IsNullOrEmpty(ClaudeColor) ? "#10B981" : ClaudeColor;
+        if (id == "grok") return string.IsNullOrEmpty(GrokColor) ? "#E2E8F0" : GrokColor;
         return "#FFA500";
     }
     public void SetProviderColor(string id, string color) {
@@ -261,17 +264,20 @@ public class Preferences {
         if (id == "codex") CodexColor = color;
         else if (id == "antigravity") AntigravityColor = color;
         else if (id == "claude") ClaudeColor = color;
+        else if (id == "grok") GrokColor = color;
     }
     public static string GetDefaultColor(string id) {
         if (id == "codex") return "#3B82F6";
         if (id == "antigravity") return "#FFA500";
         if (id == "claude") return "#10B981";
+        if (id == "grok") return "#E2E8F0";
         return "#FFA500";
     }
     public static string GetDefaultAnimal(string id) {
         if (id == "codex") return "cat";
         if (id == "antigravity") return "fox";
         if (id == "claude") return "fox";
+        if (id == "grok") return "owl";
         return "fox";
     }
     public static string NormalizeColor(string c) {
@@ -298,10 +304,12 @@ static class Storage {
             if (!p.ProviderColors.ContainsKey("codex")) p.ProviderColors["codex"] = !string.IsNullOrEmpty(p.CodexColor) ? p.CodexColor : Preferences.GetDefaultColor("codex");
             if (!p.ProviderColors.ContainsKey("antigravity")) p.ProviderColors["antigravity"] = !string.IsNullOrEmpty(p.AntigravityColor) ? p.AntigravityColor : Preferences.GetDefaultColor("antigravity");
             if (!p.ProviderColors.ContainsKey("claude")) p.ProviderColors["claude"] = !string.IsNullOrEmpty(p.ClaudeColor) ? p.ClaudeColor : Preferences.GetDefaultColor("claude");
+            if (!p.ProviderColors.ContainsKey("grok")) p.ProviderColors["grok"] = !string.IsNullOrEmpty(p.GrokColor) ? p.GrokColor : Preferences.GetDefaultColor("grok");
             if (p.ProviderAnimals == null) p.ProviderAnimals = new Dictionary<string, string>();
             if (!p.ProviderAnimals.ContainsKey("codex")) p.ProviderAnimals["codex"] = !string.IsNullOrEmpty(p.CodexAnimal) ? p.CodexAnimal : "cat";
             if (!p.ProviderAnimals.ContainsKey("antigravity")) p.ProviderAnimals["antigravity"] = !string.IsNullOrEmpty(p.AntigravityAnimal) ? p.AntigravityAnimal : "fox";
             if (!p.ProviderAnimals.ContainsKey("claude")) p.ProviderAnimals["claude"] = !string.IsNullOrEmpty(p.ClaudeAnimal) ? p.ClaudeAnimal : "fox";
+            if (!p.ProviderAnimals.ContainsKey("grok")) p.ProviderAnimals["grok"] = !string.IsNullOrEmpty(p.GrokAnimal) ? p.GrokAnimal : "owl";
             p.CustomAnimalColor = "";
             if (p.DropAnimScale <= 0.55 && p.DropAnimScale > 0) p.DropAnimScale = 1.0;
             if (string.IsNullOrEmpty(p.DropAnimPos)) p.DropAnimPos = "right";
@@ -313,6 +321,166 @@ static class Providers {
     public static Provider EmptyCodex() { return new Provider("codex", "Codex", "#83E8C3") { Note = "等待 Codex 的用量紀錄", Source = "本機 Codex 紀錄" }; }
     public static Provider EmptyAg() { return new Provider("antigravity", "Antigravity", "#96B7FF") { Note = "請先開啟並登入 Antigravity", Source = "Antigravity 本機服務" }; }
     public static Provider EmptyClaude() { return new Provider("claude", "Claude", "#EDA46A") { Note = "請先啟動 Claude 官方桌面版", Source = "Claude 官方桌面版" }; }
+    public static Provider EmptyGrok() { return new Provider("grok", "Grok", "#E2E8F0") { Note = "等待 Grok Bot 本機用量紀錄", Source = "Grok Bot 本機服務" }; }
+    public static string FindGrokBotDataDir() {
+        try {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string grokDir = Path.Combine(appData, "Grok Bot", "sand-client-persistence");
+            if (Directory.Exists(grokDir)) return grokDir;
+        } catch { }
+        return null;
+    }
+    public static Provider ParseGrokBotBlob(string text) {
+        var r = EmptyGrok();
+        if (string.IsNullOrEmpty(text)) return r;
+        try {
+            object obj = Json.Parse(text);
+            if (obj == null) return r;
+            object val = Json.Get(obj, "value");
+            object reading = Json.Get(val, "reading");
+            object usage = Json.Get(reading, "usage");
+            if (usage == null) return r;
+
+            double? percentUsed = Json.Number(Json.Get(usage, "percentUsed"));
+            double? nextResetMs = Json.Number(Json.Get(usage, "nextResetMs"));
+            double? readAtMs = Json.Number(Json.Get(reading, "readAtMs"));
+            string planName = Json.Str(Json.Get(usage, "unifiedPlanName"));
+            if (string.IsNullOrEmpty(planName)) planName = "Premium";
+
+            if (percentUsed.HasValue) {
+                double remaining = Math.Max(0.0, Math.Min(100.0, 100.0 - percentUsed.Value));
+                DateTime? resetTime = null;
+                if (nextResetMs.HasValue && nextResetMs.Value > 0) {
+                    resetTime = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMilliseconds(nextResetMs.Value);
+                }
+
+                r.Quotas.Add(new Quota {
+                    Label = planName + " · 週額度",
+                    Remaining = Quota.Clamp(remaining),
+                    Reset = resetTime,
+                    WindowMinutes = 10080
+                });
+
+                r.Tokens = (long)Math.Round(percentUsed.Value);
+                r.TokenLabel = string.Format("{0} · {1}% 已用", planName, Math.Round(percentUsed.Value));
+            }
+
+            if (readAtMs.HasValue && readAtMs.Value > 0) {
+                r.Updated = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMilliseconds(readAtMs.Value);
+            } else {
+                r.Updated = DateTime.UtcNow;
+            }
+
+            r.Note = "Grok Bot 官方桌面端紀錄";
+            r.Source = "Grok Bot 本機紀錄";
+            return r;
+        } catch {
+            return r;
+        }
+    }
+    public static Provider ParseGrok(string json) {
+        var r = EmptyGrok();
+        if (string.IsNullOrEmpty(json)) return r;
+        try {
+            object obj = Json.Parse(json);
+            if (obj == null) return r;
+
+            double? remaining = Json.Number(Json.Get(obj, "remaining"));
+            double? used = Json.Number(Json.Get(obj, "used_messages"));
+            double? total = Json.Number(Json.Get(obj, "total_messages"));
+            double? windowMinutes = Json.Number(Json.Get(obj, "window_minutes"));
+            string model = Json.Str(Json.Get(obj, "model"));
+            if (string.IsNullOrEmpty(model)) model = "Grok";
+
+            DateTime? resetTime = null;
+            object resetObj = Json.Get(obj, "resets_at");
+            if (resetObj != null) {
+                resetTime = Quota.Epoch(resetObj);
+                if (!resetTime.HasValue) resetTime = Quota.Iso(resetObj);
+            }
+
+            DateTime? stamp = Quota.Iso(Json.Get(obj, "timestamp"));
+            r.Updated = stamp ?? DateTime.UtcNow;
+
+            if (!remaining.HasValue && used.HasValue && total.HasValue && total.Value > 0) {
+                remaining = Math.Max(0.0, Math.Min(100.0, (1.0 - (used.Value / total.Value)) * 100.0));
+            }
+
+            if (remaining.HasValue) {
+                string quotaLabel = windowMinutes.HasValue && windowMinutes.Value > 0
+                    ? (windowMinutes.Value <= 120 ? "2 小時額度" : (windowMinutes.Value / 60).ToString("0.#") + " 小時額度")
+                    : "訊息額度";
+
+                r.Quotas.Add(new Quota {
+                    Label = model + " · " + quotaLabel,
+                    Remaining = Quota.Clamp(remaining.Value),
+                    Reset = resetTime,
+                    WindowMinutes = windowMinutes.GetValueOrDefault(120)
+                });
+            }
+
+            if (used.HasValue) {
+                r.Tokens = (long)used.Value;
+                r.TokenLabel = total.HasValue
+                    ? string.Format("已用 {0} / 上限 {1} 則", (long)used.Value, (long)total.Value)
+                    : string.Format("本週期已使用 {0} 則訊息", (long)used.Value);
+            }
+
+            r.Note = "Grok Bot 外部同步";
+            return r;
+        } catch {
+            return r;
+        }
+    }
+    public static Provider Grok() {
+        // 1. 優先嘗試讀取 Grok Bot 官方桌面版（sand-client-persistence 中的 weekly-usage 快取）
+        try {
+            string dir = FindGrokBotDataDir();
+            if (dir != null && Directory.Exists(dir)) {
+                var files = Directory.GetFiles(dir, "*.blob");
+                string targetFile = null;
+                foreach (var f in files) {
+                    if (f.IndexOf("o5swk23mpewxk43bm5ss4y3bmnugk", StringComparison.OrdinalIgnoreCase) >= 0) {
+                        targetFile = f;
+                        break;
+                    }
+                }
+                if (targetFile == null) {
+                    var sorted = files.Select(x => new FileInfo(x)).OrderByDescending(x => x.LastWriteTime).Take(10);
+                    foreach (var fi in sorted) {
+                        if (fi.Length > 0 && fi.Length < 10000) {
+                            try {
+                                string txt = File.ReadAllText(fi.FullName, Encoding.UTF8);
+                                if (txt.Contains("percentUsed") && txt.Contains("unifiedPlanName")) {
+                                    targetFile = fi.FullName;
+                                    break;
+                                }
+                            } catch { }
+                        }
+                    }
+                }
+
+                if (targetFile != null && File.Exists(targetFile)) {
+                    using (var fs = new FileStream(targetFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fs, Encoding.UTF8)) {
+                        string content = reader.ReadToEnd();
+                        var parsed = ParseGrokBotBlob(content);
+                        if (parsed != null && parsed.Quotas.Count > 0) return parsed;
+                    }
+                }
+            }
+        } catch { }
+
+        // 2. 次要：檢查是否有外部同步之 grok-status.json
+        string file = Path.Combine(Storage.State, "grok-status.json");
+        if (File.Exists(file)) {
+            try {
+                return ParseGrok(File.ReadAllText(file, Encoding.UTF8));
+            } catch { }
+        }
+
+        return EmptyGrok();
+    }
     public static Provider ParseCodex(string line) {
         object e = Json.Parse(line), p = Json.Get(e, "payload");
         if (Json.Str(Json.Get(p, "type")) != "token_count") return null;
@@ -832,8 +1000,14 @@ class Island : Window {
     readonly TopmostGuard topmostGuard;
 
     double GetCompactLogicalWidth() {
-        int chipCount = Math.Max(1, prefs != null ? prefs.GetOrderedProviders().Count : 1);
-        double compactContentW = Math.Max(520, 350 + chipCount * 75);
+        int activeCount = 0;
+        if (prefs != null) {
+            foreach (var id in prefs.GetOrderedProviders()) {
+                if (Enabled(id)) activeCount++;
+            }
+        }
+        activeCount = Math.Max(1, activeCount);
+        double compactContentW = Math.Max(500, 310 + activeCount * 70);
         return compactContentW + 28;
     }
 
@@ -925,7 +1099,7 @@ class Island : Window {
             var area = WorkArea();
             double initLogicalW = GetCompactLogicalWidth();
             double initLogicalH = 40;
-            double expandedLogicalW = 620 + 28;
+            double expandedLogicalW = Math.Max(660 + 28, initLogicalW);
             Width = expandedLogicalW * prefs.Scale;
             Height = initLogicalH * prefs.Scale;
             Top = area.Top;
@@ -934,9 +1108,15 @@ class Island : Window {
             data["codex"] = Providers.EmptyCodex(); data["codex"].Theme = prefs.GetProviderColor("codex");
             data["antigravity"] = Providers.EmptyAg(); data["antigravity"].Theme = prefs.GetProviderColor("antigravity");
             data["claude"] = Providers.EmptyClaude(); data["claude"].Theme = prefs.GetProviderColor("claude");
-            foreach (var id in new[] { "codex", "antigravity", "claude" }) {
+            data["grok"] = Providers.EmptyGrok(); data["grok"].Theme = prefs.GetProviderColor("grok");
+            foreach (var id in new[] { "codex", "antigravity", "claude", "grok" }) {
                 PixelAnimal.EnsureTheme(prefs.GetProviderColor(id), prefs.GetProviderAnimal(id));
             }
+            LocalSyncServer.Start(delegate(string providerId) {
+                Dispatcher.BeginInvoke(new Action(async delegate {
+                    await Refresh(true);
+                }));
+            });
 
             // 根容器與縮放（外層全透明畫布）
             rootContainer = new Grid { ClipToBounds = false, Background = null };
@@ -1559,6 +1739,7 @@ class Island : Window {
                     try { wakeupListener.Abort(); } catch { }
                 }
                 topmostGuard.Dispose();
+                LocalSyncServer.Stop();
                 poll.Stop(); clock.Stop(); collapse.Stop(); hover.Stop(); animationClock.Stop(); cinemaTimer.Stop();
                 if (debounceTimer != null) debounceTimer.Stop();
                 if (watcherAg != null) { watcherAg.EnableRaisingEvents = false; watcherAg.Dispose(); }
@@ -1761,10 +1942,11 @@ class Island : Window {
         return b;
     }
 
-    bool Enabled(string id) { return id == "codex" ? prefs.Codex : id == "antigravity" ? prefs.Antigravity : prefs.Claude; }
+    bool Enabled(string id) { return id == "codex" ? prefs.Codex : id == "antigravity" ? prefs.Antigravity : id == "grok" ? prefs.Grok : prefs.Claude; }
     void SetEnabled(string id, bool v) {
         if (id == "codex") prefs.Codex = v;
         else if (id == "antigravity") prefs.Antigravity = v;
+        else if (id == "grok") prefs.Grok = v;
         else prefs.Claude = v;
         Save();
         Render();
@@ -1788,9 +1970,8 @@ class Island : Window {
                 pt = src.CompositionTarget.TransformFromDevice.Transform(pt);
             }
             var area = WorkArea();
-            int chipCount = Math.Max(1, prefs.GetOrderedProviders().Count);
-            double compactW = Math.Max(480, 320 + chipCount * 56) + 28;
-            double currentIslandW = (expanded ? 648 : compactW) * prefs.Scale;
+            double compactW = GetCompactLogicalWidth();
+            double currentIslandW = (expanded ? Math.Max(660 + 28, compactW) : compactW) * prefs.Scale;
             double islandLeft = area.Left + (area.Width - currentIslandW) / 2.0;
             double h = (expanded ? 316 : 40) * prefs.Scale;
             return pt.X >= islandLeft - padX && pt.X <= islandLeft + currentIslandW + padX &&
@@ -1893,8 +2074,8 @@ class Island : Window {
         double compactLogicalW = GetCompactLogicalWidth();
         double compactLogicalH = 40;
 
-        double expandedContentW = 620;
-        double expandedLogicalW = expandedContentW + 28; // 648
+        double expandedContentW = Math.Max(640, compactLogicalW - 28);
+        double expandedLogicalW = expandedContentW + 28;
         double expandedLogicalH = 316;
 
         compactPhysicsW = compactLogicalW * s;
@@ -1984,7 +2165,7 @@ class Island : Window {
         double compactLogicalW = GetCompactLogicalWidth();
         double compactLogicalH = 40;
 
-        double expandedContentW = 620;
+        double expandedContentW = Math.Max(640, compactLogicalW - 28);
         double expandedLogicalW = expandedContentW + 28;
         double expandedLogicalH = 316;
 
@@ -2275,9 +2456,9 @@ class Island : Window {
             var chip = new StackPanel {
                 Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0),
+                Margin = new Thickness(0, 0, 7, 0),
                 Cursor = Cursors.Hand,
-                ToolTip = p.Name + " · " + status + "\n" + Age(p.Updated)
+                ToolTip = p.Name + " · " + status + (string.IsNullOrEmpty(p.TokenLabel) ? "" : "\n" + p.TokenLabel) + "\n" + Age(p.Updated)
             };
             chip.Children.Add(Animal(p, 28));
 
@@ -2607,6 +2788,15 @@ class Island : Window {
             b.HorizontalAlignment = HorizontalAlignment.Left;
             panel.Children.Add(b);
         }
+        if (p.Id == "grok" && !p.Updated.HasValue) {
+            var b = Button("開啟 X.com Grok", delegate {
+                try { Process.Start(new ProcessStartInfo("https://x.com/i/grok") { UseShellExecute = true }); } catch { }
+            }, "在預設瀏覽器開啟 X.com Grok");
+            b.FontSize = 10;
+            b.HorizontalAlignment = HorizontalAlignment.Left;
+            b.Margin = new Thickness(0, 3, 0, 0);
+            panel.Children.Add(b);
+        }
 
         card.ToolTip = p.Source + "\n" + p.Note + "\n" + PixelAnimal.MoodText(PixelAnimal.Mood(p.DailyRemaining ?? p.Remaining, p.Stale));
         return card;
@@ -2620,10 +2810,12 @@ class Island : Window {
             var c = Task.Run(() => Providers.Codex());
             var cl = Task.Run(() => Providers.Claude());
             var a = ag ? Task.Run(() => Providers.Antigravity()) : Task.FromResult(data["antigravity"]);
-            await Task.WhenAll(c, cl, a);
+            var gk = Task.Run(() => Providers.Grok());
+            await Task.WhenAll(c, cl, a, gk);
             if (closing) return;
             Merge(c.Result);
             Merge(cl.Result);
+            Merge(gk.Result);
             if (ag) { Merge(a.Result); lastAg = DateTime.UtcNow; }
             foreach (var p in data.Values) {
                 var alertQuotas = p.Id == "antigravity"
@@ -2939,13 +3131,14 @@ class Island : Window {
         var modelTabs = new[] {
             new { Id = "codex", Name = "Codex" },
             new { Id = "antigravity", Name = "Antigravity" },
-            new { Id = "claude", Name = "Claude" }
+            new { Id = "claude", Name = "Claude" },
+            new { Id = "grok", Name = "Grok" }
         };
 
         if (string.IsNullOrEmpty(selectedSettingsModelId) || !modelTabs.Any(m => m.Id == selectedSettingsModelId))
             selectedSettingsModelId = "codex";
 
-        var tabsGrid = new UniformGrid { Columns = 3, Margin = new Thickness(4, 0, 4, 6) };
+        var tabsGrid = new UniformGrid { Columns = 4, Margin = new Thickness(4, 0, 4, 6) };
         var tabBorders = new Dictionary<string, Border>();
         var tabTexts = new Dictionary<string, TextBlock>();
 
@@ -3519,7 +3712,39 @@ class Island : Window {
 
         separator();
 
-        // 7. 底部操作
+        // 7. Grok 油猴腳本助手
+        var grokScriptCard = new Border {
+            Background = Brush("#111520"),
+            BorderBrush = Brush("#232B3D"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(4, 2, 4, 4)
+        };
+        var scriptLayout = new Grid();
+        scriptLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        scriptLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var scriptInfo = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        scriptInfo.Children.Add(Text(I18n.T("Settings.GrokUserscript"), 10.5, "#E2E8F0"));
+        scriptInfo.Children.Add(Text("自動捕捉 X.com Grok 機器人額度 (Tampermonkey)", 9, "#7E8B9B"));
+        var openScriptBtn = Button(I18n.T("Settings.InstallScript"), delegate {
+            try {
+                string scriptPath = Path.Combine(Storage.Root, "assets", "tokenisland-grok.user.js");
+                if (File.Exists(scriptPath)) Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + scriptPath + "\"") { UseShellExecute = true });
+            } catch { }
+        }, I18n.T("Settings.InstallScript"));
+        openScriptBtn.Padding = new Thickness(8, 3, 8, 3);
+        openScriptBtn.FontSize = 10;
+        Grid.SetColumn(scriptInfo, 0);
+        Grid.SetColumn(openScriptBtn, 1);
+        scriptLayout.Children.Add(scriptInfo);
+        scriptLayout.Children.Add(openScriptBtn);
+        grokScriptCard.Child = scriptLayout;
+        rows.Children.Add(grokScriptCard);
+
+        separator();
+
+        // 8. 底部操作
         var bottom = new UniformGrid { Columns = 2, Margin = new Thickness(4, 2, 4, 2) };
         bottom.Children.Add(MenuAction(I18n.T("Common.UpdateNow"), async delegate { await Refresh(true); await WeatherManager.Instance.RefreshAsync(true); }, false));
         bottom.Children.Add(MenuAction(I18n.T("Common.Exit"), Close, true));
@@ -3825,6 +4050,17 @@ static class Program {
                 return 0;
             } catch { return 1; }
         }
+        if (args.Contains("--grok-statusline")) {
+            try {
+                if (!Console.IsInputRedirected) return 1;
+                var readTask = System.Threading.Tasks.Task.Factory.StartNew(() => Console.In.ReadToEnd());
+                if (!readTask.Wait(500)) return 1;
+                object input = Json.Parse(readTask.Result);
+                Storage.Write("grok-status.json", input);
+                Console.Write("Token Island · Grok 用量已同步");
+                return 0;
+            } catch { return 1; }
+        }
         if (args.Contains("--self-test")) return SelfTest();
         if (args.Contains("--sprite-preview")) { PixelPreview.Save(); return 0; }
         if (args.Contains("--screenshot-drop")) {
@@ -3837,7 +4073,7 @@ static class Program {
             return 0;
         }
         if (args.Contains("--diagnose")) {
-            var results = new[] { Providers.Codex(), Providers.Antigravity(), Providers.Claude() };
+            var results = new[] { Providers.Codex(), Providers.Antigravity(), Providers.Claude(), Providers.Grok() };
             Storage.Write("diagnostics.json", results.Select(x => new { provider = x.Name, note = x.Note, updated = x.Updated.HasValue ? x.Updated.Value.ToString("o") : null, remaining = x.Remaining, quotaCount = x.Quotas.Count, tokenCount = x.Tokens }).ToArray()); return 0;
         }
         bool fresh;
@@ -3953,6 +4189,15 @@ static class Program {
             check(pTest.GetProviderColor("codex") == "#EF4444", "Codex independent custom color set and get");
             check(pTest.GetProviderColor("claude") == "#10B981", "Claude independent custom color set and get");
             check(pTest.GetProviderColor("antigravity") == "orange" || pTest.GetProviderColor("antigravity") == "#FFA500", "Antigravity color remains independent");
+            var grokTest = Providers.ParseGrok("{\"remaining\":78.5,\"used_messages\":11,\"total_messages\":50,\"model\":\"Grok 2\",\"window_minutes\":120,\"resets_at\":2000000000}");
+            check(grokTest.Remaining == 78.5 && grokTest.Quotas.Count == 1 && grokTest.Tokens == 11, "Grok provider parsing and message count");
+            check(pTest.GetProviderAnimal("grok") == "owl", "Default Grok animal is owl");
+            pTest.SetProviderColor("grok", "#E2E8F0");
+            check(pTest.GetProviderColor("grok") == "#E2E8F0", "Grok independent color set and get");
+            string mockGrokBlob = "{\"schemaVersion\":2,\"value\":{\"kind\":\"present\",\"selectedTeamId\":null,\"reading\":{\"usage\":{\"percentUsed\":30.44,\"nextResetMs\":1793475330733,\"unifiedPlanName\":\"Premium\"},\"readAtMs\":1792939554109}}}";
+            var nativeGrok = Providers.ParseGrokBotBlob(mockGrokBlob);
+            check(Math.Abs(nativeGrok.Remaining.Value - 69.56) < 0.01 && nativeGrok.Tokens == 30, "Grok Bot native blob parsing percentUsed and remaining");
+            check(Providers.FindGrokBotDataDir() == null || Directory.Exists(Providers.FindGrokBotDataDir()), "Grok Bot client data directory discovery");
             Storage.Write("test-results.json", new { passed = tests.Count, tests = tests }); return 0;
         } catch (Exception e) {
             try { File.WriteAllText(Path.Combine(Storage.State, "test-err.txt"), e.ToString()); } catch { }

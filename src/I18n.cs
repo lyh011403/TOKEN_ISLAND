@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace TokenIsland {
@@ -213,6 +213,8 @@ namespace TokenIsland {
                     { "Settings.DropPosRight", "右上角 (推薦)" },
                     { "Settings.DropPosIsland", "靈動島" },
                     { "Settings.DropPosCenter", "正中央" },
+                    { "Settings.GrokUserscript", "Grok 油猴同步腳本 (X.com)" },
+                    { "Settings.InstallScript", "開啟油猴腳本檔案" },
                     { "Settings.DropPreview", "測試掉落小貓動畫" },
                     { "Settings.Scale", "動態島縮放比例" },
                     { "Settings.ScaleTip", "調整動態島整體顯示大小" },

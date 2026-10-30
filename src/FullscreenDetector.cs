@@ -48,6 +48,9 @@ namespace TokenIsland {
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
@@ -65,8 +68,27 @@ namespace TokenIsland {
 
         private static readonly HashSet<string> AiToolProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
             "codex", "chatgpt", "antigravity", "claude", "cursor", "code", "windowsterminal", "cmd", "powershell", "pwsh",
-            "devenv", "rider64", "pycharm64", "idea64"
+            "devenv", "rider64", "pycharm64", "idea64", "grok bot", "grok", "grokbot", "sand", "sand-desktop"
         };
+
+        public static string GetWindowTitle(IntPtr hWnd) {
+            if (hWnd == IntPtr.Zero) return "";
+            var sb = new StringBuilder(512);
+            GetWindowText(hWnd, sb, sb.Capacity);
+            return sb.ToString();
+        }
+
+        public static bool IsAiToolOrGrokWindow(IntPtr hWnd, string procName) {
+            if (!string.IsNullOrEmpty(procName) && AiToolProcessNames.Contains(procName)) return true;
+            string title = GetWindowTitle(hWnd);
+            if (string.IsNullOrEmpty(title)) return false;
+            return title.IndexOf("Grok", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("Nova", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("x.com", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("ChatGPT", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("Claude", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("Antigravity", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
         private static readonly Dictionary<uint, string> pidNameCache = new Dictionary<uint, string>();
         private static DateTime lastCacheClean = DateTime.UtcNow;
@@ -196,6 +218,7 @@ namespace TokenIsland {
                         int interB = Math.Min(fgRect.Bottom, islandBounds.Bottom);
                         if (interR > interL && interB > interT) {
                             string pName = GetProcessNameFast(fgPid);
+                            if (IsAiToolOrGrokWindow(fg, pName)) return false;
                             if (BrowserProcessNames.Contains(pName)) {
                                 // 判斷是否覆蓋動態島頂部區域
                                 if (fgRect.Top <= workArea.Top + 75 && fgRect.Bottom >= workArea.Top + 50 &&
@@ -318,8 +341,8 @@ namespace TokenIsland {
             GetWindowThreadProcessId(fg, out fgPid);
             if (fgPid != 0 && fgPid != ownPid) {
                 string pName = GetProcessNameFast(fgPid);
-                if (AiToolProcessNames.Contains(pName)) {
-                    return false; // AI 工具前景時，絕對維持置頂！
+                if (IsAiToolOrGrokWindow(fg, pName)) {
+                    return false; // AI 工具或 Grok 網頁前景時，絕對維持置頂！
                 }
             }
 
