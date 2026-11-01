@@ -63,7 +63,8 @@ namespace TokenIsland {
 
         private static readonly HashSet<string> BrowserProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
             "chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc", "waterfox",
-            "chromium", "whale", "thorium", "zen", "floorp", "maxthon", "centbrowser", "sidekick"
+            "chromium", "whale", "thorium", "zen", "floorp", "maxthon", "centbrowser", "sidekick",
+            "tor", "librewolf"
         };
 
         private static readonly HashSet<string> AiToolProcessNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
@@ -78,16 +79,27 @@ namespace TokenIsland {
             return sb.ToString();
         }
 
-        public static bool IsAiToolOrGrokWindow(IntPtr hWnd, string procName) {
-            if (!string.IsNullOrEmpty(procName) && AiToolProcessNames.Contains(procName)) return true;
+        public static bool IsAiToolWindow(IntPtr hWnd, string procName) {
+            if (string.IsNullOrEmpty(procName)) return false;
+            // 關鍵解耦：若當前前景為網頁瀏覽器，一律歸屬瀏覽器規則管理，不享有 AI 豁免！
+            // 防止瀏覽器分頁開啟 ChatGPT / Claude / Grok 時，造成靈動島無法自動避讓而擋住分頁列
+            if (BrowserProcessNames.Contains(procName)) return false;
+
+            // 1. 獨立桌面 AI 工具進程白名單（如 Grok Bot 桌面版、Cursor、VS Code、Terminal 等）
+            if (AiToolProcessNames.Contains(procName)) return true;
+
+            // 2. 非瀏覽器之獨立桌面軟體視窗標題判定
             string title = GetWindowTitle(hWnd);
             if (string.IsNullOrEmpty(title)) return false;
-            return title.IndexOf("Grok", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   title.IndexOf("Nova", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   title.IndexOf("x.com", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            return title.IndexOf("Grok Bot", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("Grok", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    title.IndexOf("ChatGPT", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    title.IndexOf("Claude", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    title.IndexOf("Antigravity", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public static bool IsAiToolOrGrokWindow(IntPtr hWnd, string procName) {
+            return IsAiToolWindow(hWnd, procName);
         }
 
         private static readonly Dictionary<uint, string> pidNameCache = new Dictionary<uint, string>();
@@ -218,7 +230,6 @@ namespace TokenIsland {
                         int interB = Math.Min(fgRect.Bottom, islandBounds.Bottom);
                         if (interR > interL && interB > interT) {
                             string pName = GetProcessNameFast(fgPid);
-                            if (IsAiToolOrGrokWindow(fg, pName)) return false;
                             if (BrowserProcessNames.Contains(pName)) {
                                 // 判斷是否覆蓋動態島頂部區域
                                 if (fgRect.Top <= workArea.Top + 75 && fgRect.Bottom >= workArea.Top + 50 &&
@@ -226,6 +237,7 @@ namespace TokenIsland {
                                     return true;
                                 }
                             }
+                            if (IsAiToolWindow(fg, pName)) return false;
                         }
                     }
                 }
@@ -339,33 +351,35 @@ namespace TokenIsland {
             uint ownPid = (uint)Process.GetCurrentProcess().Id;
             uint fgPid;
             GetWindowThreadProcessId(fg, out fgPid);
-            if (fgPid != 0 && fgPid != ownPid) {
-                string pName = GetProcessNameFast(fgPid);
-                if (IsAiToolOrGrokWindow(fg, pName)) {
-                    return false; // AI 工具或 Grok 網頁前景時，絕對維持置頂！
-                }
-            }
-
-            // 檢查是否為全螢幕（覆蓋了動態島所在螢幕）
-            if (r.Left <= islandBounds.Left + 2 && r.Top <= islandBounds.Top + 2 &&
-                r.Right >= islandBounds.Right - 2 && r.Bottom >= islandBounds.Bottom - 2) {
-                return true;
-            }
+            string pName = (fgPid != 0 && fgPid != ownPid) ? GetProcessNameFast(fgPid) : "";
 
             int centerX = workArea.Left + workArea.Width / 2;
 
-            // 檢查同螢幕上的網頁瀏覽器
-            if (fgPid != 0 && fgPid != ownPid) {
-                string pName = GetProcessNameFast(fgPid);
-                if (BrowserProcessNames.Contains(pName)) {
-                    // 同螢幕瀏覽器分頁列通常在頂部，若頂端在頂部範圍且橫向覆蓋動態島，或瀏覽器最大化，則避讓
-                    if ((r.Top <= workArea.Top + 75 && r.Bottom >= workArea.Top + 50 &&
-                         r.Left <= centerX + 220 && r.Right >= centerX - 220) ||
-                        (r.Left <= workArea.Left + 15 && r.Top <= workArea.Top + 15 && r.Right >= workArea.Right - 15)) {
-                        return true;
-                    }
-                    return false;
+            // 1. 若同螢幕前景為網頁瀏覽器，嚴格優先執行避讓判定（即使當前分頁為 ChatGPT / Claude / Grok）
+            if (!string.IsNullOrEmpty(pName) && BrowserProcessNames.Contains(pName)) {
+                // 檢查是否為全螢幕（覆蓋了動態島所在螢幕）
+                if (r.Left <= islandBounds.Left + 2 && r.Top <= islandBounds.Top + 2 &&
+                    r.Right >= islandBounds.Right - 2 && r.Bottom >= islandBounds.Bottom - 2) {
+                    return true;
                 }
+                // 同螢幕瀏覽器分頁列通常在頂部，若頂端在頂部範圍且橫向覆蓋動態島，或瀏覽器最大化，則避讓
+                if ((r.Top <= workArea.Top + 75 && r.Bottom >= workArea.Top + 50 &&
+                     r.Left <= centerX + 220 && r.Right >= centerX - 220) ||
+                    (r.Left <= workArea.Left + 15 && r.Top <= workArea.Top + 15 && r.Right >= workArea.Right - 15)) {
+                    return true;
+                }
+                return false;
+            }
+
+            // 2. 若為非瀏覽器的獨立 AI 工具視窗（例如 Grok Bot 桌面端、Cursor、VS Code、Terminal 等），永遠維持置頂不避讓！
+            if (IsAiToolWindow(fg, pName)) {
+                return false;
+            }
+
+            // 3. 檢查一般視窗是否為全螢幕（覆蓋了動態島所在螢幕）
+            if (r.Left <= islandBounds.Left + 2 && r.Top <= islandBounds.Top + 2 &&
+                r.Right >= islandBounds.Right - 2 && r.Bottom >= islandBounds.Bottom - 2) {
+                return true;
             }
 
             // 檢查同螢幕上的非 AI 視窗是否遮蔽螢幕頂部中央
